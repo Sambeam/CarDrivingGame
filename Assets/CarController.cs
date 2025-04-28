@@ -31,10 +31,17 @@ public class CarController : MonoBehaviour
     public KeyCode explodeKey = KeyCode.E;
     private bool isDestroyed = false;
 
+    [Header("Reset Settings")]
+    public KeyCode resetKey = KeyCode.R;
+
     private Rigidbody rb;
     private float steerInput;
     private float currentSpeed;
     private bool isDrifting;
+
+    // Store starting position and rotation
+    private Vector3 startingPosition;
+    private Quaternion startingRotation;
 
     void Start()
     {
@@ -42,10 +49,19 @@ public class CarController : MonoBehaviour
         rb.centerOfMass = new Vector3(0, -0.6f, 0);
         rb.drag = drag;
         rb.angularDrag = normalAngularDrag;
+
+        // Save starting position and rotation
+        startingPosition = transform.position;
+        startingRotation = transform.rotation;
     }
 
     void FixedUpdate()
     {
+        // Always allow reset
+        if (Input.GetKeyDown(resetKey))
+        {
+            ResetCar();
+        }
         if (isDestroyed) return;
 
         HandleInput();
@@ -56,6 +72,11 @@ public class CarController : MonoBehaviour
         if (Input.GetKeyDown(explodeKey))
         {
             ExplodeCar();
+        }
+
+        if (Input.GetKeyDown(resetKey))
+        {
+            ResetCar();
         }
     }
 
@@ -115,16 +136,13 @@ public class CarController : MonoBehaviour
     {
         isDestroyed = true;
 
-        // Spawn explosion at car's current position
         if (explosionPrefab != null)
         {
             Instantiate(explosionPrefab, transform.position, Quaternion.identity);
         }
 
-        // Add explosion force
         rb.AddExplosionForce(2500f, transform.position - transform.forward * 2f, 5f, 2f, ForceMode.Impulse);
 
-        // Hide car visuals
         foreach (Transform child in transform)
         {
             if (child.TryGetComponent<MeshRenderer>(out var mr))
@@ -140,10 +158,39 @@ public class CarController : MonoBehaviour
             }
         }
 
-        // Optional: freeze controls
         rb.velocity = Vector3.zero;
         rb.angularVelocity = Vector3.zero;
         rb.constraints = RigidbodyConstraints.FreezeAll;
+    }
+
+    void ResetCar()
+    {
+        isDestroyed = false;
+
+        // Unfreeze rigidbody
+        rb.constraints = RigidbodyConstraints.None;
+        rb.constraints = RigidbodyConstraints.FreezeRotationX | RigidbodyConstraints.FreezeRotationZ;
+
+        rb.velocity = Vector3.zero;
+        rb.angularVelocity = Vector3.zero;
+        transform.position = startingPosition;
+        transform.rotation = startingRotation;
+
+        // Restore car visuals
+        foreach (Transform child in transform)
+        {
+            if (child.TryGetComponent<MeshRenderer>(out var mr))
+            {
+                mr.enabled = true;
+            }
+            foreach (Transform grandchild in child)
+            {
+                if (grandchild.TryGetComponent<MeshRenderer>(out var gmr))
+                {
+                    gmr.enabled = true;
+                }
+            }
+        }
     }
 
 }
